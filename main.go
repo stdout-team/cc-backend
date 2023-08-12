@@ -2,6 +2,7 @@ package main
 
 import (
 	"cc/controllers"
+	"cc/services"
 	"context"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,10 +19,18 @@ func main() {
 
 	defer pool.Close()
 
-	controller := controllers.NewController(pool)
+	service := services.NewEventsService(pool)
+
+	controller := controllers.NewController(service)
 
 	e := gin.New()
 	v1 := e.Group("/v1")
 
+	v1.Use(controllers.CorsMiddleware)
+	v1.Use(controllers.ErrorsMiddleware)
+
 	v1.GET("/events", controller.EventsLookup)
+	v1.GET("/getCoordinates", controllers.ResolveCoordinates)
+
+	e.Run(":8084")
 }

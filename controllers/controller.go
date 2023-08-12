@@ -1,11 +1,13 @@
 package controllers
 
-import "github.com/jackc/pgx/v5/pgxpool"
+import (
+	"cc/services"
+)
 
 type Controller struct {
-	connPool *pgxpool.Pool
+	evService *services.EventsService
 }
 
-func NewController(p *pgxpool.Pool) *Controller {
-	return &Controller{connPool: p}
+func NewController(evService *services.EventsService) *Controller {
+	return &Controller{evService: evService}
 }
