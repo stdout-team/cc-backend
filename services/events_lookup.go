@@ -72,32 +72,46 @@ func (es *EventsService) fetchEventRows(rows pgx.Rows) ([]*models.Event, error) 
 	resp := make([]*models.Event, 0)
 
 	for rows.Next() {
-		event := &models.Event{}
-
-		loc := &models.Location{}
-		pnt := &pgPoint{}
-
-		err := rows.Scan(&event.ID, &event.Title, &event.CountMeIn, &pnt, &loc.Place, &event.Description, &event.Announced, &event.Updated)
+		event, err := es.fetchEvent(rows)
 		if err != nil {
 			return nil, err
 		}
 
-		event.Schedule, err = es.getSchedule(event.ID)
-		if err != nil {
-			return nil, err
-		}
-
-		event.Interests, err = es.getTags(event.ID)
-		if err != nil {
-			return nil, err
-		}
-
-		loc.Coords = [2]float32{pnt.X, pnt.Y}
-		event.Loc = loc
 		resp = append(resp, event)
 	}
 
 	return resp, nil
+}
+
+type scanner interface {
+	Scan(dest ...any) error
+}
+
+func (es *EventsService) fetchEvent(r scanner) (*models.Event, error) {
+	event := &models.Event{}
+
+	loc := &models.Location{}
+	pnt := &pgPoint{}
+
+	err := r.Scan(&event.ID, &event.Title, &event.CountMeIn, &pnt, &loc.Place, &event.Description, &event.Announced, &event.Updated)
+	if err != nil {
+		return nil, err
+	}
+
+	event.Schedule, err = es.getSchedule(event.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	event.Interests, err = es.getTags(event.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	loc.Coords = [2]float32{pnt.X, pnt.Y}
+	event.Loc = loc
+
+	return event, nil
 }
 
 func (es *EventsService) getSchedule(eventID string) ([]models.DaySchedule, error) {
@@ -123,8 +137,8 @@ func (es *EventsService) getSchedule(eventID string) ([]models.DaySchedule, erro
 		}
 
 		ds[0] = date.Format("2006-01-02")
-		ds[1] = date.Format("15:04")
-		ds[2] = date.Format("15:04")
+		ds[1] = opensAt.Format("15:04")
+		ds[2] = closesAt.Format("15:04")
 
 		result = append(result, ds)
 	}
@@ -156,4 +170,9 @@ func (es *EventsService) getTags(eventID string) ([]string, error) {
 	}
 
 	return result, nil
+}
+
+func (es *EventsService) getByID(eventID string) (*models.Event, error) {
+	row := es.p.QueryRow(context.Background(), "select e.id, e.title, e.cmi, e.coords, e.placedescription, e.eventdescription, e.announced, e.updated from events e where e.id = $1", eventID)
+	return es.fetchEvent(row)
 }

@@ -21,16 +21,16 @@ func main() {
 
 	service := services.NewEventsService(pool)
 
-	controller := controllers.NewController(service)
+	mainController := controllers.NewController(service)
 
 	e := gin.New()
-	v1 := e.Group("/v1")
+	v1 := e.Group("/v1").Use(controllers.CorsMiddleware()).Use(controllers.ErrorsMiddleware)
 
-	v1.Use(controllers.CorsMiddleware)
-	v1.Use(controllers.ErrorsMiddleware)
-
-	v1.GET("/events", controller.EventsLookup)
+	v1.GET("/events", mainController.EventsLookup)
 	v1.GET("/getCoordinates", controllers.ResolveCoordinates)
+	v1.POST("/countMeIn/:id", mainController.CountMeIn)
+	v1.GET("/interests", mainController.GetAllInterests)
+	v1.POST("/addEvent", mainController.AddEvent)
 
 	e.Run(":8084")
 }
